@@ -1,0 +1,34 @@
+name: yaadley
+description: "Yaadly: say it in Roman Urdu, Yaadly remembers."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  dio: ^5.11.1
+  flutter_riverpod: ^3.4.3
+  flutter_secure_storage: ^11.2.0
+  flutter_svg: ^2.3.0
+  gap: ^3.0.1
+  go_router: ^18.1.1
+  # 9.x depends on the decoupled `material_ui` package, whose types clash with flutter/material
+  # (still used by go_router etc.). Stay on 8.x until the ecosystem migrates.
+  google_fonts: ^8.2.1
+  intl: any # pinned by flutter_localizations
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

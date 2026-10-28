@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+
+  --color-cream: #fbf6ea;
+  --color-paper: #fffdf6;
+  --color-butter: #fff1ad;
+  --color-sun: #f7c948;
+  --color-sand: #ecdcc0;
+  --color-tan: #cfb08a;
+  --color-ink: #2d2113;
+  --color-clay: #7a6650;
+  --color-rust: #b83d26;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--color-sun);
+    color: var(--color-ink);
+  }
+  button {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-sun);
+    outline-offset: 2px;
+  }
+}
+
+.scroll-quiet {
+  scrollbar-width: none;
+}
+.scroll-quiet::-webkit-scrollbar {
+  display: none;
+}
+
+.hard {
+  border: 2px solid var(--color-ink);
+  box-shadow: 4px 4px 0 var(--color-ink);
+}
+.hard-sm {
+  border: 2px solid var(--color-ink);
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+.press {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.press:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--color-ink);
+}
+
+.label-caps {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-clay);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.3s ease both;
+}
