@@ -62,6 +62,16 @@ class YaadlyApi {
 
   Future<void> disconnectGoogle() => _call(() => _dio.delete<void>('/v1/google'), (_) {});
 
+  Future<List<GoogleCalendarInfo>> googleCalendars() => _call(
+        () => _dio.get<Json>('/v1/google/calendars'),
+        (d) => [for (final c in ((d as Json)['calendars'] as List)) GoogleCalendarInfo.fromJson(c as Json)],
+      );
+
+  Future<void> setMainCalendar(String calendarId) => _call(() => _dio.put<void>('/v1/google/main-calendar', data: {'calendarId': calendarId}), (_) {});
+
+  /// Erases the account and everything in it (PRD A-5). The session is gone afterwards.
+  Future<void> deleteAccount() => _call(() => _dio.delete<void>('/v1/me'), (_) {});
+
   // ---------------------------------------------------------------- calendar
 
   Future<DayData> day(DateTime date) => _call(() => _dio.get<Json>('/v1/day', queryParameters: {'date': isoDay(date)}), (d) => DayData.fromJson(d as Json));

@@ -81,14 +81,34 @@ Add it to the VPS `.env` before deploying M5. Changing it later logs every app u
 
 ## 4. WhatsApp reminder template (M7)
 
-Reminders outside the 24-hour chat window need an approved template. Until it's approved, reminders are only sent while the window is open.
+Reminders outside the 24-hour chat window need an approved template. Until it's approved, reminders only reach users who messaged the bot in the last 24 hours (the backend logs a failed reminder for everyone else, and it shows in the app Inbox).
 
 WhatsApp Manager → **Message templates → Create template**:
 - Category: **Utility**
 - Name: `event_reminder`
-- Language: **English**
-- Body: `Reminder: {{1}} at {{2}}.` (samples: `Doctor appointment`, `4:30 PM`)
-- Buttons: **Quick reply** `OK` and `Snooze 10 min`
+- Language: **English** (`en`)
+- Header: none · Footer (optional): `Yaadly`
+- Body (exactly 3 variables, in this order):
+  ```
+  Reminder: your event *{{1}}* starts at {{2}}. {{3}} Reply here if you need to change it.
+  ```
+  Samples: {{1}} `Meeting with Ali` · {{2}} `4:00 PM, in 30 min` · {{3}} `Join: https://meet.google.com/abc-defg-hij`
+- Buttons: **Quick reply** `Theek hai`, then `10 min baad` (order matters: the first is "OK", the second is "snooze")
+
+### Second template: `task_reminder` (tasks with a due date)
+
+Same steps, with:
+- Category **Utility**, name `task_reminder`, language **English**
+- Body (exactly 2 variables):
+  ```
+  Yaadly task reminder. Due today: *{{1}}*. {{2}} Reply here once it's done, or tap a button below.
+  ```
+  Samples: {{1}} `Pay electricity bill` · {{2}} `From your Ghar list.`
+- Buttons: **Quick reply** `Ho gaya`, then `1 ghante baad` (order matters: "done", then "snooze")
+
+Without it, task reminders only reach users who messaged the bot in the last 24 hours. Name comes from `WHATSAPP_TASK_TEMPLATE` (default `task_reminder`).
+
+The event template: the backend fills {{2}} with the time (plus the day if it isn't today) and {{3}} with the meeting link, the location, or "Details are in the Yaadly app.". Name and language come from `WHATSAPP_REMINDER_TEMPLATE` / `WHATSAPP_REMINDER_TEMPLATE_LANG` in `.env` (defaults `event_reminder` / `en`; blank name = in-window reminders only).
 
 ## 5. Operations
 

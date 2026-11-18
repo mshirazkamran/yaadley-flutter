@@ -21,7 +21,8 @@ import '../calendar/event_sheet.dart';
 import '../connect/connect_screen.dart';
 
 /// More / Settings (PRD F-12): reply mode, auto-save, testing mode, reminders, language,
-/// Google connection, WhatsApp link, server status, help and sign out.
+/// quiet hours, Google connection + main calendar, WhatsApp link, server status, help, sign out
+/// and delete my data.
 class MoreScreen extends ConsumerStatefulWidget {
   const MoreScreen({super.key});
 
@@ -67,6 +68,68 @@ class _MoreScreenState extends ConsumerState<MoreScreen> with WidgetsBindingObse
       // Offline: still sign out locally; the server session expires on its own.
     }
     await ref.read(sessionProvider.notifier).signedOut();
+  }
+
+  /// Picks the calendar new Yaadly events are written to (PRD D19 / F-12).
+  Future<void> _pickMainCalendar() async {
+    final s = ref.read(stringsProvider);
+    final api = ref.read(apiProvider);
+    try {
+      final calendars = await api.googleCalendars();
+      if (!mounted) return;
+      final picked = await showYSheet<String>(
+        context,
+        (ctx) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(s.tr('Main calendar', 'Main calendar'), style: YaadlyText.display(size: 26)),
+            const Gap(4),
+            Text(s.tr('Naye events is calendar mein jayenge. Clash sab calendars se check hota hai.', 'New events go to this calendar. Clashes are checked across all of them.'),
+                style: YaadlyText.body(size: 13, color: YaadlyColors.clay)),
+            const Gap(16),
+            for (final c in calendars)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ChoicePill(label: c.primary ? '${c.name} ★' : c.name, selected: c.main, onTap: () => Navigator.pop(ctx, c.id)),
+              ),
+          ],
+        ),
+      );
+      if (picked == null || calendars.any((c) => c.main && c.id == picked)) return;
+      await api.setMainCalendar(picked);
+      if (mounted) showSnack(context, s.tr('Main calendar badal diya ✅', 'Main calendar changed ✅'));
+    } catch (e) {
+      if (mounted) showError(context, s, e);
+    }
+  }
+
+  /// Time picker for an `HH:mm` setting (quiet hours, task reminder time).
+  Future<void> _pickQuietTime(String current, String key) async {
+    final parts = current.split(':');
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.tryParse(parts.first) ?? 23, minute: int.tryParse(parts.last) ?? 0));
+    if (t == null) return;
+    await _update({key: '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}'});
+  }
+
+  /// Delete my data (PRD A-5): erases everything on the server and signs this phone out.
+  Future<void> _deleteAccount() async {
+    final s = ref.read(stringsProvider);
+    final ok = await confirmDialog(
+      context,
+      title: s.tr(
+        'Apna sara data delete karein? Events, lists, history sab mit jayega aur Google Calendar ka link hata diya jayega. Ye wapas nahi ho sakta. (Google mein pehle se bane events wahin rahenge.)',
+        'Delete all your data? Events, lists and history are erased and Google Calendar is disconnected. This cannot be undone. (Events already in Google stay there.)',
+      ),
+      yes: s.tr('Haan, delete', 'Yes, delete'),
+      no: s.tr('Nahi', 'No'),
+    );
+    if (!ok) return;
+    try {
+      await ref.read(apiProvider).deleteAccount();
+      await ref.read(sessionProvider.notifier).signedOut();
+    } catch (e) {
+      if (mounted) showError(context, s, e);
+    }
   }
 
   @override
@@ -132,7 +195,40 @@ class _MoreScreenState extends ConsumerState<MoreScreen> with WidgetsBindingObse
                           },
                         ),
                       ),
-                      _Row(label: s.tr('Reminder', 'Reminder'), detail: s.tr('Event se pehle', 'Before each event'), trailing: _ReminderPicker(value: st.reminderMinutes, onChanged: (v) => _update({'reminderMinutes': v}))),
+                      _Row(label: s.tr('Reminder', 'Reminder'), detail: s.tr('WhatsApp par, event se pehle', 'On WhatsApp, before each event'), trailing: _ReminderPicker(value: st.reminderMinutes, onChanged: (v) => _update({'reminderMinutes': v}))),
+                      _Row(
+                        label: s.tr('Kaam ki yaad dihani', 'Task reminders'),
+                        detail: s.tr('Due date wale din WhatsApp par', 'On WhatsApp, on the due day'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (st.taskRemindersEnabled) ...[
+                              _SmallButton(label: st.taskReminderTime, onTap: () => _pickQuietTime(st.taskReminderTime, 'taskReminderTime')),
+                              const Gap(8),
+                            ],
+                            YToggle(value: st.taskRemindersEnabled, label: 'Task reminders', onChanged: (v) => _update({'taskRemindersEnabled': v})),
+                          ],
+                        ),
+                      ),
+                      _Row(
+                        label: s.tr('Quiet hours', 'Quiet hours'),
+                        detail: st.quietHoursEnabled
+                            ? s.tr('In ghanton mein WhatsApp reminder nahi aayega (app Inbox mein dikhega)', 'No WhatsApp reminders in these hours (shown in the app Inbox)')
+                            : s.tr('Reminders har waqt aayenge', 'Reminders arrive at any time'),
+                        trailing: YToggle(value: st.quietHoursEnabled, label: 'Quiet hours', onChanged: (v) => _update({'quietHoursEnabled': v})),
+                      ),
+                      if (st.quietHoursEnabled)
+                        _Row(
+                          label: s.tr('Kab se kab tak', 'From – to'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _SmallButton(label: st.quietStart, onTap: () => _pickQuietTime(st.quietStart, 'quietStart')),
+                              const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Text('–')),
+                              _SmallButton(label: st.quietEnd, onTap: () => _pickQuietTime(st.quietEnd, 'quietEnd')),
+                            ],
+                          ),
+                        ),
                     ]),
                     const Gap(20),
                     SectionLabel(s.tr('Connections', 'Connections')),
@@ -166,6 +262,12 @@ class _MoreScreenState extends ConsumerState<MoreScreen> with WidgetsBindingObse
                                   )
                                 : _SmallButton(label: s.tr('Jorein', 'Connect'), onTap: () => openGoogleConnect(context, ref)),
                       ),
+                      if (m.google.connected)
+                        _Row(
+                          label: s.tr('Main calendar', 'Main calendar'),
+                          detail: s.tr('Naye events kahan jayein', 'Where new events go'),
+                          trailing: _SmallButton(label: s.tr('Chunein', 'Choose'), onTap: _pickMainCalendar),
+                        ),
                       _Row(
                         label: s.serverStatus,
                         detail: Uri.parse(AppConfig.apiBaseUrl).host,
@@ -180,6 +282,13 @@ class _MoreScreenState extends ConsumerState<MoreScreen> with WidgetsBindingObse
                     YButton(label: s.tr('Commands aur help', 'Commands & help'), variant: YButtonVariant.paper, expand: true, onPressed: () => context.push(Routes.help)),
                     const Gap(10),
                     YButton(label: s.tr('Sign out', 'Sign out'), variant: YButtonVariant.ink, expand: true, onPressed: _signOut),
+                    const Gap(10),
+                    Center(
+                      child: TextButton(
+                        onPressed: _deleteAccount,
+                        child: Text(s.tr('Mera sara data delete karo', 'Delete my data'), style: YaadlyText.body(weight: FontWeight.w600, color: YaadlyColors.rust)),
+                      ),
+                    ),
                     const Gap(16),
                     Center(
                       child: TextButton(

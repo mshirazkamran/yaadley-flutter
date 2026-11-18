@@ -18,15 +18,18 @@ import '../../core/widgets/yaadly_widgets.dart';
 const _durations = [15, 30, 45, 60, 90, 120];
 
 /// Add (event == null) or edit a Yaadly event. Google-only events are read-only and never get here.
-Future<void> showEventSheet(BuildContext context, {EventItem? event, DateTime? day}) {
-  return showYSheet<void>(context, (_) => _EventForm(event: event, day: day ?? DateTime.now()));
+/// [start] / [durationMin] prefill a new event (e.g. from a free-slot chip).
+Future<void> showEventSheet(BuildContext context, {EventItem? event, DateTime? day, DateTime? start, int? durationMin}) {
+  return showYSheet<void>(context, (_) => _EventForm(event: event, day: start ?? day ?? DateTime.now(), start: start, durationMin: durationMin));
 }
 
 class _EventForm extends ConsumerStatefulWidget {
-  const _EventForm({required this.event, required this.day});
+  const _EventForm({required this.event, required this.day, this.start, this.durationMin});
 
   final EventItem? event;
   final DateTime day;
+  final DateTime? start;
+  final int? durationMin;
 
   @override
   ConsumerState<_EventForm> createState() => _EventFormState();
@@ -36,8 +39,12 @@ class _EventFormState extends ConsumerState<_EventForm> {
   late final _title = TextEditingController(text: widget.event?.title);
   late final _location = TextEditingController(text: widget.event?.location);
   late DateTime _date = dateOnly(widget.event?.start ?? widget.day);
-  late TimeOfDay _time = widget.event == null ? _nextHalfHour() : TimeOfDay.fromDateTime(widget.event!.start);
-  late int _duration = widget.event?.durationMin ?? 60;
+  late TimeOfDay _time = widget.event != null
+      ? TimeOfDay.fromDateTime(widget.event!.start)
+      : widget.start != null
+          ? TimeOfDay.fromDateTime(widget.start!)
+          : _nextHalfHour();
+  late int _duration = widget.event?.durationMin ?? widget.durationMin ?? 60;
   // One key per form: tapping Save twice (or a retry) creates the event once.
   final _idempotencyKey = newIdempotencyKey();
   bool _busy = false;

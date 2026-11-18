@@ -14,6 +14,7 @@ import '../../core/widgets/yaadly_icon.dart';
 import '../../core/widgets/yaadly_widgets.dart';
 import '../today/today_screen.dart';
 import 'event_sheet.dart';
+import 'free_slots_sheet.dart';
 
 /// A10 Calendar (PRD F-9): month grid with dots, the selected day's events and tasks, and "+"
 /// to add an event manually.
@@ -78,7 +79,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                           onSelect: (day) => setState(() => _selected = day),
                         ),
                         const Gap(20),
-                        SectionLabel(Fmt.day(_selected, s)),
+                        Row(
+                          children: [
+                            Expanded(child: SectionLabel(Fmt.day(_selected, s))),
+                            ChoicePill(label: s.tr('🕒 Kab free hoon?', '🕒 When am I free?'), selected: false, onTap: () => showFreeSlotsSheet(context, _selected)),
+                          ],
+                        ),
+                        const Gap(8),
                         if (events.isEmpty && tasks.isEmpty)
                           Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(s.tr('Is din kuch plan nahi.', 'Nothing planned this day.'), style: YaadlyText.body(color: YaadlyColors.clay))),
                         for (final (i, e) in events.indexed) Padding(padding: const EdgeInsets.only(bottom: 12), child: EventCard(event: e, alternate: i.isOdd)),

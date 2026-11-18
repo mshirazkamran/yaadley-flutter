@@ -3,8 +3,8 @@
 > Quick overview of everything we've discussed. The full spec is in [PRD.md](PRD.md).
 > **There are two identical copies**, one in `yaadley-backend/` and one in `yaadley-flutter/`. Update both together.
 
-**Status:** PRD v1.6. **M0–M6 code done.** Backend: 117 unit + 29 integration tests ✅. Flutter: analyze clean, 6 tests ✅. NLU eval set (60 cases) ready: `npm run eval:nlu` (needs a Groq key, not yet run). Next: you deploy + test M5/M6 and run the eval; then M7 (reminders, delete account, resync).
-**Last updated:** 2026-10-29
+**Status:** PRD v1.7. **M0–M7 code done** incl. task due-date reminders (week view deferred). Backend: 135 unit + 40 integration tests ✅. Flutter: analyze clean, 7 tests ✅. M0–M6 deployed and working on the phone. Next: `event_reminder` template submitted ✅ (waiting for approval); submit `task_reminder`, deploy M7 (migration `0004_m7_reminders` runs on boot), test reminders/snooze/quiet hours/delete account on the phone, run `npm run eval:nlu`.
+**Last updated:** 2026-11-18
 
 ---
 
@@ -69,6 +69,12 @@ Yaadly is a WhatsApp assistant for Pakistani users. It turns Urdu, Roman Urdu an
 | D57 | Flutter: hand-written JSON models (no codegen), Dio with a queued 401→refresh interceptor, Riverpod providers, Inbox polls every 15 s while foregrounded and drives the tab badge. | R9 |
 | D58 | **Photo → Event (M6):** WhatsApp image → in-memory download (≤ 4 MB, Groq's base64 limit) → Qwen3.8-27B vision into the same intent contract → normal event flow, **always confirm** (`from_photo`). A photographed list adds items. `PHOTO_EVENTS=false` turns it off. | R10 |
 | D59 | **NLU eval** lives in `eval/` (60 Roman Urdu/English cases, fixed "today"), run on demand with `npm run eval:nlu`; exits non-zero below 85% (all fields correct). Not part of CI because it costs API calls. | R10 |
+| D60 | **Reminders = one per-minute pg-boss cron** (`reminder-tick`), not a job per event. A claim stamps `reminded_for = start_at`, so edits/undo/moves re-arm it and cancels drop it with no job bookkeeping. Only Yaadly events get reminders. | R11 |
+| D61 | **24 h window:** free-form interactive message if the user wrote in the last 23 h 55 m, otherwise the `event_reminder` utility template (3 body variables, 2 quick-reply buttons whose payloads are `r:<eventId>:ok|snooze`). Blank `WHATSAPP_REMINDER_TEMPLATE` = in-window only. Reminders ignore delivery mode (always WhatsApp). | R11 |
+| D62 | **Quiet hours are a toggle** (off by default) with from/to times. When on, reminders due inside them are not sent on WhatsApp; the Inbox shows them as "not sent". Events created/changed after their reminder time get no reminder. Snooze = 10 min. | R11 |
+| D63 | **Delete account** (`DELETE /v1/me`): revoke Google, then delete the user row; every table cascades. Events already in Google stay there. | R11 |
+| D64 | **Week view dropped from M7** (owner's call). Main-calendar picker lists writable calendars only; changing it affects new events only. | R11 |
+| D65 | **Task reminders** (E-7) reuse the reminder tick: tasks due today (user tz) are claimed after `task_reminder_time` (default 09:00, on by default), stamped `reminded_for = due_date`, and grouped into **one message per user per day**. Buttons `t:<date>:done|snooze` act on every open task reminded for that date ("Ho gaya" goes through `ListService` so it's undoable). Snooze 1 h. Second template `task_reminder`. Only on the due day (no overdue nags). | R11 |
 | D37 | **Design source:** Figma Make file `SL2R1QOmwmnljpRE0CGxV2` (React prototype). The connector is connected and lists its files. Use the exported code in `yaadley-flutter/design/figma-make/`. | R4 |
 
 ## 3. Scope at a glance
@@ -85,8 +91,10 @@ Yaadly is a WhatsApp assistant for Pakistani users. It turns Urdu, Roman Urdu an
 - [ ] VPS: Docker + Compose plugin, git (Caddy already installed). DNS A record for `yaadley-api.mshiraz.com` ✅ added.
 - [ ] Keys: **Groq** (required now), **Meta** (phone number ID, WABA ID, System User token, app secret), **Google** OAuth client (redirect `https://yaadley-api.mshiraz.com/v1/google/callback`).
 - [x] Codemagic set up (keystore still pending).
-- [ ] Replace the email placeholder in `yaadley-flutter/codemagic.yaml`.
-- [ ] After the Codemagic app exists: keystore guide (Claude), then uncomment `android_signing`.
+- [x] Codemagic signing + email set up; backend deployed; M0–M6 working on the phone.
+- [x] Submit the `event_reminder` template (submitted 2026-11-18, awaiting approval).
+- [ ] Submit the `task_reminder` template (SETUP.md §4: 2 variables, quick replies "Ho gaya" / "1 ghante baad").
+- [ ] Deploy M7 and test reminders on the phone.
 
 ## 5. Expert findings (status)
 
@@ -105,7 +113,7 @@ Yaadly is a WhatsApp assistant for Pakistani users. It turns Urdu, Roman Urdu an
 | F19 | Real DB integration (migrations, upserts, pg-boss) | Verified manually on 2026-10-28 against Docker Postgres. An automated integration test suite is a later nice-to-have |
 | F21 | Retried jobs re-evaluated already-saved events, which clashed with themselves | **Fixed** (idempotency-key check first). Caught by an integration test |
 | F22 | `overlaps` is an SQL keyword | Column renamed to `allow_overlap` |
-| F23 | Failed Google writes are not retried automatically | Follow-up: background resync job for `google_event_id IS NULL` events |
+| F23 | Failed Google writes are not retried automatically | **Fixed (M7):** `google-resync` cron every 10 min pushes upcoming unsynced events (adopts an existing Google copy instead of duplicating). Also syncs upcoming events made before the user connected Google |
 | F24 | Meta locked the WABA (131031) for an unverified business | Appeal + verification (FBR NTN) in progress. Fallback: Twilio sandbox adapter |
 | F25 | Rename/delete list, set default, move items | ✅ In the app (M5). Not by WhatsApp message |
 | F20 | Release APK signing | Keystore created; upload to Codemagic as `yaadly_keystore` (SETUP.md §3). `android_signing` enabled |
@@ -123,3 +131,4 @@ Yaadly is a WhatsApp assistant for Pakistani users. It turns Urdu, Roman Urdu an
 - **R8:** M4 built: lists with purpose, per-item routing, split + de-dup, tick/remove (fuzzy match), due dates, `/list`, `/list <name>`, `/tasks`, due tasks in `/today`, unified undo. Migration `0002_m4_lists`. 109 unit + 22 integration tests. Meta WABA locked (131031): appeal + verification started.
 - **R9:** WhatsApp live (new portfolio, app published, WABA subscribed via Graph Explorer). Keystore generated. M5 built: pairing + JWT sessions, app REST API (`/v1/me`, day/calendar, events CRUD, inbox/pending/answer, undo, lists/items CRUD incl. rename/default/move), Flutter screens (Link, Connect, Today, Inbox, Pending/Clarify/Clash, Calendar month, Lists + detail, Settings, Help). SETUP.md added to both repos.
 - **R10:** M6 built: Photo → Event (Qwen vision, confirm-first, list photos too, 4 MB cap), eval set + runner. 117 unit + 29 integration tests.
+- **R11:** M7 built: WhatsApp reminders (per-minute tick, free-form/template by 24 h window, snooze, quiet-hours toggle, Inbox entries), delete account, main-calendar picker, free-time finder sheet in the app, Google resync job (F23), task due-date reminders. Migration `0004_m7_reminders`. Week view deferred. 135 unit + 40 integration tests.

@@ -1,7 +1,7 @@
 # Yaadly: Product Requirements Document (PRD)
 
 **Tagline:** Say it in Roman Urdu. Yaadly remembers.
-**Version:** 1.6 (MVP)  ·  **Date:** 2026-10-28  ·  **Status:** Approved for build
+**Version:** 1.7 (MVP)  ·  **Date:** 2026-11-18  ·  **Status:** Approved for build
 **Owner:** Muhammad Shiraz Kamran (FA23-BSE-077, BSE-7B), solo developer
 **Senior dev / reviewer:** Claude
 **Design:** Figma Make, https://www.figma.com/make/SL2R1QOmwmnljpRE0CGxV2/Design-mobile-app-UI-screens (published at https://ardent-quirky-31020635.figma.site). Follow it ~70–80%; the other 20–30% are changes listed in §9.
@@ -98,7 +98,7 @@ In Chat-replies mode, commands get a text reply. In App-only mode they get a �
 | D-3 | **Clash detection** against Yaadly events and **all visible Google calendars** (freebusy). On a clash: react ⚠️ and show both events with **Dono rakho** (keep both) / **Time badlo** (change time, suggesting up to 3 free slots) / **Naya cancel karo** (cancel the new one). | P0 |
 | D-4 | **Edit, reschedule and cancel by message**, e.g. "kal wali meeting 4 bajay kar do" (move tomorrow's meeting to 4) or "Ali wala plan cancel karo" (cancel the plan with Ali). Find matching events first. One match: confirm. Several: the user picks. None: "Nahi mila" (not found). Also possible in the app. | P0 |
 | D-5 | **Meeting links:** detect Zoom, Google Meet or Teams URLs in text or forwarded messages. Store the link on the event and put it in the Google event description. If the time is missing, clarify (B-4). | P0 |
-| D-6 | **Reminders** are sent on **WhatsApp** (FCM is dropped for now), 30 min before by default (configurable). Inside the 24 h customer-service window this is a free-form message. Outside it, an approved **utility template** `event_reminder` is used. Buttons: "Theek hai" (OK) and "10 min baad" (snooze). | P1 |
+| D-6 | **Reminders** are sent on **WhatsApp** (FCM is dropped for now), 30 min before by default (configurable, or off). Only for Yaadly events (not Google-only ones). Inside the 24 h customer-service window this is a free-form message. Outside it, an approved **utility template** `event_reminder` is used. Buttons: "Theek hai" (OK) and "10 min baad" (snooze). Optional **quiet hours** (a toggle plus from/to times) hold the WhatsApp message back; the reminder still shows in the app Inbox. | P1 |
 | D-7 | Google is the source of truth for events that live there. If a Yaadly event is changed or deleted in Google, Yaadly picks that up the next time it reads (on every view, command or clash check). | P0 |
 
 ### Epic E: Lists
@@ -111,6 +111,7 @@ In Chat-replies mode, commands get a text reply. In App-only mode they get a �
 | E-4 | Tick off ("doodh le liya", i.e. got the milk), remove, rename and move items by message or in the app. Changes show in both places. | P0 |
 | E-5 | **One item model:** text, done flag, optional **due date**, optional note. Overdue items show in red. | P0 |
 | E-6 | Rename or delete a list. Set the default list. | P1 |
+| E-7 | **Task reminders:** open items with a due date get one WhatsApp nudge on the due day at the user's task-reminder time (default 09:00, on by default, configurable). All of a user's tasks due that day go in one message. Buttons: "Ho gaya" (ticks them all off, undoable) and "1 ghante baad" (snooze 1 h). Same 24 h window / template (`task_reminder`) / quiet-hours rules as event reminders. Items added or changed after the reminder time that day are not reminded. | P1 |
 
 ### Epic F: Android app (Flutter)
 
@@ -126,7 +127,7 @@ Follows Figma ~70–80%. Screen changes are listed in §9.
 | F-6 | Pending event detail: original message / transcript, editable fields, Confirm / Edit / Cancel, low-confidence hint | P0 |
 | F-7 | Clarification card (AM/PM, day picker, duration) | P0 |
 | F-8 | Clash screen (new vs. existing, free-slot chips) | P0 |
-| F-9 | **Calendar**: month grid with dots, plus a day list; week view is P1. "+" adds an event manually | P0 |
+| F-9 | **Calendar**: month grid with dots, plus a day list, a "Kab free hoon?" button (free slots → new event). "+" adds an event manually. Week view is deferred | P0 |
 | F-10 | **Lists**: all lists → list detail (checkbox rows, add field, due-date chip). Create-list sheet with purpose | P0 |
 | F-11 | Help: commands, voice examples, reaction legend | P1 |
 | F-12 | **Settings**: language (**EN / Roman Urdu toggle**), delivery mode, testing mode, auto-save (on), reminder minutes, quiet hours, main calendar picker, Google connection, WhatsApp link status, delete my data | P0 (language, delivery, testing, auto-save, Google, WhatsApp) / P1 (rest) |
@@ -167,7 +168,7 @@ No limits or counters are enforced in this build. The `UsageCounter` table still
 3. **Photo → Event:** the image arrives → 👀 → Qwen3.8-27B vision → the same pipeline from the clash check onwards.
 4. **List dictation:** voice → intent `add_list_items` → route each item to a list by purpose, or to the default list → split and de-duplicate → 🛒 (+ list card).
 5. **Edit/cancel by message:** intent `edit_event` / `cancel_event` → match candidates → confirm or choose → update Google + DB → ✅ (with Undo).
-6. **Reminder:** pg-boss job at start − N min → WhatsApp message with a join link if there is one → "Theek hai" / "10 min baad".
+6. **Reminder:** a pg-boss job runs every minute and claims events whose start − N min has passed (once per start time, so a moved event is reminded again; cancelled events never match) → quiet-hours check → WhatsApp message (free-form in the window, template outside) with a join link if there is one → "Theek hai" / "10 min baad" (snooze re-fires 10 min later). Events created or changed after their reminder time are not reminded.
 7. **Undo:** look up the last `ActionLog` entry within 15 min → apply its inverse → ↩️.
 
 ## 8. Non-functional requirements
@@ -223,19 +224,20 @@ One Node process runs in two roles (API + worker), so there is no Redis. pg-boss
 
 ### Data model (Drizzle, PostgreSQL)
 
-`users`(id, wa_number, display_name, language, timezone, delivery_mode, testing_mode, auto_save, reminder_min, quiet_start, quiet_end, default_list_id, main_calendar_id, last_inbound_at, created_at)
+`users`(id, wa_number, display_name, language, timezone, delivery_mode, testing_mode, auto_save, reminder_min, quiet_hours_enabled, quiet_start, quiet_end, task_reminders_enabled, task_reminder_time, default_list_id, main_calendar_id, last_inbound_at, created_at)
 `devices`(id, user_id, platform, name, refresh_token_hash, last_seen, created_at)
 `pairing_codes`(code, device_nonce, user_id?, expires_at, used_at)
 `calendar_connections`(user_id, provider, google_email, enc_access_token, enc_refresh_token, expires_at, status)
-`events`(id, user_id, title, start_at, end_at, location, meeting_link, meeting_platform, google_calendar_id, google_event_id, source, status[pending|confirmed|cancelled], overlaps, created_at, updated_at)
+`events`(id, user_id, title, start_at, end_at, location, meeting_link, meeting_platform, google_calendar_id, google_event_id, source, status[pending|confirmed|cancelled], overlaps, reminded_for, snooze_until, created_at, updated_at)
 `pending_actions`(id, user_id, type[create_event|edit_event|cancel_event|clarify|clash|add_items], payload_json, question_json, status, wa_context_message_id, expires_at, created_at)
 `lists`(id, user_id, name, purpose, kind, is_default, created_at)
-`list_items`(id, list_id, text, is_done, due_at, note, created_at, done_at)
+`list_items`(id, list_id, text, is_done, due_at, note, reminded_for, snooze_until, created_at, done_at)
 `action_log`(id, user_id, action, before_json, after_json, created_at, undone_at) (for Undo)
 `inbox_items`(id, user_id, type, title, body, deep_link, reaction, pending_action_id, read_at, created_at)
 `message_log`(id, user_id, wa_message_id UNIQUE, kind[text|audio|image|command|button], transcript, parsed_json, delivery_mode, latency_ms, status, error, created_at)
 `usage_counters`(user_id, date, commands, replies) (recorded only, not enforced)
-`reminders` are pg-boss scheduled jobs keyed by event id.
+`reminder_log`(id, user_id, kind[event|task], event_id?, item_ids?, status[sent|skipped_quiet|failed], channel[freeform|template], title, event_start, snoozed, error, created_at) (shown in Inbox Updates)
+Reminders use one per-minute pg-boss cron job (`reminder-tick`), not one job per event. A second cron (`google-resync`, every 10 min) pushes upcoming events whose Google write failed.
 
 ### REST API (v1)
 
@@ -246,6 +248,7 @@ One Node process runs in two roles (API + worker), so there is no Redis. pg-boss
 | POST | `/v1/auth/refresh` · `/v1/auth/logout` | Session |
 | GET | `/v1/me` · PATCH `/v1/me/settings` | Profile and settings |
 | POST | `/v1/google/link` → one-time URL opened in a Custom Tab · GET `/v1/google/connect` · GET `/v1/google/callback` · DELETE `/v1/google` | Google OAuth |
+| GET | `/v1/google/calendars` · PUT `/v1/google/main-calendar` `{calendarId}` | Main-calendar picker (writable calendars) |
 | GET | `/v1/day?date=` · `/v1/calendar?from=&to=` | Merged Yaadly + Google events, plus due items |
 | POST/PATCH/DELETE | `/v1/events[/:id]` | Manual event CRUD |
 | GET | `/v1/inbox` · POST `/v1/inbox/seen` | Inbox (pending + updates, unread count) |
@@ -371,7 +374,7 @@ yaadely/                      (local parent folder only, not a git repo)
 | M4 ✅ code | Lists: create with purpose, routing, add/tick/remove, slash commands | "doodh, anday…" → 5 items in the right list |
 | M5 ✅ code | App: pairing, Today, Inbox + pending/clarify/clash, Lists, Calendar month, Settings (language, delivery, testing) | End-to-end demo on the phone |
 | M6 ✅ code | Photo → Event, meeting links, NLU eval set | Forwarded shaadi card → pending event |
-| M7 (P1) | Reminders (pg-boss + template), free-time finder, Help, week view, delete account | — |
+| M7 ✅ code | Reminders (per-minute pg-boss tick + `event_reminder` template, snooze, quiet-hours toggle), task due-date reminders (`task_reminder` template), free-time finder in the app, delete account, main-calendar picker, Google resync job. Week view deferred | Reminder arrives on WhatsApp 30 min before; "10 min baad" re-reminds |
 
 Quality gates: TypeScript strict mode, vitest unit tests for the parsing rules, delivery selector and routing, the eval runner, and `flutter analyze` clean.
 
@@ -391,4 +394,4 @@ Quality gates: TypeScript strict mode, vitest unit tests for the parsing rules, 
 
 ## 15. Deferred / later
 
-Plans, limits, payments (Play Billing vs. web checkout), landing page, admin dashboard, FCM push, iOS, recurring events, shared lists, Outlook, Urdu-script text input, timezone setting, morning agenda, in-app mic.
+Plans, limits, payments (Play Billing vs. web checkout), landing page, admin dashboard, FCM push, iOS, recurring events, shared lists, Outlook, Urdu-script text input, timezone setting, morning agenda, in-app mic, calendar week view, reminders for Google-only events, per-task "done" buttons in multi-task reminders, list rename/delete by WhatsApp message.

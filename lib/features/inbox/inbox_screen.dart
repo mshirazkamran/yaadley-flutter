@@ -210,6 +210,12 @@ class _UpdateRow extends ConsumerWidget {
       'list_items_added' => ('🛒', s.tr('${u.summary.length} item add hue', '${u.summary.length} item(s) added')),
       'list_items_done' => ('☑️', s.tr('Ho gaya', 'Done')),
       'list_items_removed' => ('🗑️', s.tr('List se hataya', 'Removed from list')),
+      'reminder_sent' => ('⏰', s.tr('WhatsApp par yaad dilaya', 'Reminder sent on WhatsApp')),
+      'reminder_skipped' => ('🌙', s.tr('Reminder (quiet hours, WhatsApp nahi bheja)', 'Reminder (quiet hours, not sent)')),
+      'reminder_failed' => ('⚠️', s.tr('Reminder nahi ja saka', "Reminder couldn't be sent")),
+      'task_reminder_sent' => ('📝', s.tr('Aaj ke kaam yaad dilaye', 'Task reminder sent')),
+      'task_reminder_skipped' => ('🌙', s.tr('Kaam ka reminder (quiet hours, nahi bheja)', 'Task reminder (quiet hours, not sent)')),
+      'task_reminder_failed' => ('⚠️', s.tr('Kaam ka reminder nahi ja saka', "Task reminder couldn't be sent")),
       _ => ('•', u.kind),
     };
     final detail = [u.summary.take(4).join(', '), if (u.eventStart != null) Fmt.dayTime(u.eventStart!, s)].where((x) => x.isNotEmpty).join(' · ');

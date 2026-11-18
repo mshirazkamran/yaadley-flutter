@@ -27,7 +27,18 @@ enum Language { romanUr, en }
 enum DeliveryMode { chat, app }
 
 class Settings {
-  const Settings({required this.language, required this.deliveryMode, required this.testingMode, required this.autoSave, required this.reminderMinutes});
+  const Settings({
+    required this.language,
+    required this.deliveryMode,
+    required this.testingMode,
+    required this.autoSave,
+    required this.reminderMinutes,
+    this.quietHoursEnabled = false,
+    this.quietStart = '23:00',
+    this.quietEnd = '08:00',
+    this.taskRemindersEnabled = true,
+    this.taskReminderTime = '09:00',
+  });
 
   factory Settings.fromJson(Json j) => Settings(
         language: j['language'] == 'en' ? Language.en : Language.romanUr,
@@ -35,6 +46,11 @@ class Settings {
         testingMode: j['testingMode'] as bool,
         autoSave: j['autoSave'] as bool,
         reminderMinutes: j['reminderMinutes'] as int,
+        quietHoursEnabled: j['quietHoursEnabled'] as bool? ?? false,
+        quietStart: j['quietStart'] as String? ?? '23:00',
+        quietEnd: j['quietEnd'] as String? ?? '08:00',
+        taskRemindersEnabled: j['taskRemindersEnabled'] as bool? ?? true,
+        taskReminderTime: j['taskReminderTime'] as String? ?? '09:00',
       );
 
   final Language language;
@@ -42,6 +58,28 @@ class Settings {
   final bool testingMode;
   final bool autoSave;
   final int reminderMinutes;
+
+  /// Quiet hours (M7): reminders inside [quietStart, quietEnd) aren't sent on WhatsApp. `HH:mm`.
+  final bool quietHoursEnabled;
+  final String quietStart;
+  final String quietEnd;
+
+  /// One WhatsApp nudge on a task's due day, at [taskReminderTime] (`HH:mm`).
+  final bool taskRemindersEnabled;
+  final String taskReminderTime;
+}
+
+/// A Google calendar the user can write to (main-calendar picker).
+class GoogleCalendarInfo {
+  const GoogleCalendarInfo({required this.id, required this.name, required this.primary, required this.main});
+
+  factory GoogleCalendarInfo.fromJson(Json j) =>
+      GoogleCalendarInfo(id: j['id'] as String, name: j['name'] as String, primary: j['primary'] as bool, main: j['main'] as bool);
+
+  final String id;
+  final String name;
+  final bool primary;
+  final bool main;
 }
 
 class GoogleStatus {

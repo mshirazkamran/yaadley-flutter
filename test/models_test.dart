@@ -41,4 +41,15 @@ void main() {
     expect(Fmt.due(DateTime(2026, 10, 29), s, now: now), ('Kal', false));
     expect(isoDay(DateTime(2026, 1, 5)), '2026-01-05');
   });
+
+  test('parses M7 settings (quiet hours) and falls back for older servers', () {
+    final base = {'language': 'en', 'deliveryMode': 'chat', 'testingMode': true, 'autoSave': true, 'reminderMinutes': 30};
+    final m7 = Settings.fromJson({...base, 'quietHoursEnabled': true, 'quietStart': '22:30', 'quietEnd': '07:00'});
+    expect((m7.quietHoursEnabled, m7.quietStart, m7.quietEnd), (true, '22:30', '07:00'));
+    final old = Settings.fromJson(base);
+    expect((old.quietHoursEnabled, old.quietStart, old.quietEnd), (false, '23:00', '08:00'));
+    expect((old.taskRemindersEnabled, old.taskReminderTime), (true, '09:00'));
+    final cal = GoogleCalendarInfo.fromJson({'id': 'work@x', 'name': 'Work', 'primary': false, 'main': true});
+    expect((cal.name, cal.main), ('Work', true));
+  });
 }
