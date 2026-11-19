@@ -80,7 +80,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                           textAlign: TextAlign.center, style: YaadlyText.body(color: YaadlyColors.clay)),
                     )
                   else
-                    for (final (i, e) in d.events.indexed) Padding(padding: const EdgeInsets.only(bottom: 12), child: EventCard(event: e, alternate: i.isOdd)),
+                    for (final e in d.events) Padding(padding: const EdgeInsets.only(bottom: 12), child: EventCard(event: e)),
                   const Gap(12),
                   if (d.tasks.isNotEmpty) ...[
                     SectionLabel(s.tr('Kaam', 'Tasks')),
@@ -136,12 +136,11 @@ class _PendingBanner extends ConsumerWidget {
   }
 }
 
-/// Event card from the design: sun time block on the left, sand body. Tap to edit.
+/// Event card: butter time column (fixed width so times line up), paper body, all cards aligned. Tap to edit.
 class EventCard extends ConsumerWidget {
-  const EventCard({super.key, required this.event, this.alternate = false});
+  const EventCard({super.key, required this.event});
 
   final EventItem event;
-  final bool alternate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -152,19 +151,17 @@ class EventCard extends ConsumerWidget {
       if (event.fromGoogle) 'Google',
     ].join(' · ');
     final card = HardBox(
-      color: YaadlyColors.sand,
-      radius: alternate
-          ? const BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(22), bottomLeft: Radius.circular(22), bottomRight: Radius.circular(22))
-          : const BorderRadius.only(topLeft: Radius.circular(22), topRight: Radius.circular(22), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(22)),
+      color: YaadlyColors.paper,
+      radius: BorderRadius.circular(18),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                width: 76,
-                decoration: const BoxDecoration(color: YaadlyColors.sun, border: Border(right: BorderSide(color: YaadlyColors.ink, width: 2))),
+                width: 84,
+                decoration: const BoxDecoration(color: YaadlyColors.butter, border: Border(right: BorderSide(color: YaadlyColors.ink, width: 2))),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 alignment: Alignment.center,
                 child: event.allDay
@@ -201,10 +198,7 @@ class EventCard extends ConsumerWidget {
         ),
       ),
     );
-    return Padding(
-      padding: EdgeInsets.only(left: alternate ? 20 : 0, right: alternate ? 0 : 20),
-      child: event.id == null ? card : Pressable(onTap: () => showEventSheet(context, event: event), semanticLabel: event.title, child: card),
-    );
+    return event.id == null ? card : Pressable(onTap: () => showEventSheet(context, event: event), semanticLabel: event.title, child: card);
   }
 }
 

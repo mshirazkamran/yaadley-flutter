@@ -53,6 +53,22 @@ class Settings {
         taskReminderTime: j['taskReminderTime'] as String? ?? '09:00',
       );
 
+  Json toJson() => {
+        'language': language == Language.en ? 'en' : 'roman_ur',
+        'deliveryMode': deliveryMode.name,
+        'testingMode': testingMode,
+        'autoSave': autoSave,
+        'reminderMinutes': reminderMinutes,
+        'quietHoursEnabled': quietHoursEnabled,
+        'quietStart': quietStart,
+        'quietEnd': quietEnd,
+        'taskRemindersEnabled': taskRemindersEnabled,
+        'taskReminderTime': taskReminderTime,
+      };
+
+  /// The same settings with an API patch (`PATCH /v1/me/settings` body) applied, for optimistic UI.
+  Settings withPatch(Map<String, Object> patch) => Settings.fromJson({...toJson(), ...patch});
+
   final Language language;
   final DeliveryMode deliveryMode;
   final bool testingMode;
@@ -106,6 +122,8 @@ class Me {
         google: GoogleStatus.fromJson(j['google'] as Json),
         botNumber: j['botNumber'] as String?,
       );
+
+  Me withSettings(Settings s) => Me(id: id, waNumber: waNumber, displayName: displayName, timezone: timezone, settings: s, google: google, botNumber: botNumber);
 
   final String id;
   final String waNumber;
@@ -408,4 +426,30 @@ class AuthTokens {
 
   final String accessToken;
   final String refreshToken;
+}
+
+// ------------------------------------------------------------------ free time
+
+/// `GET /v1/free-time`: the day's free windows, and the answer for a checked time if one was asked.
+class FreeTime {
+  const FreeTime({required this.windows, this.check});
+
+  factory FreeTime.fromJson(Json j) {
+    final c = j['check'] as Json?;
+    return FreeTime(
+      windows: _list(j['windows'], (w) => EventItem(title: '', start: _wall(w['start']), end: _wall(w['end']))),
+      check: c == null ? null : FreeCheck(start: _wall(c['start']), free: c['free'] as bool, conflicts: _list(c['conflicts'], Conflict.fromJson)),
+    );
+  }
+
+  final List<EventItem> windows;
+  final FreeCheck? check;
+}
+
+class FreeCheck {
+  const FreeCheck({required this.start, required this.free, required this.conflicts});
+
+  final DateTime start;
+  final bool free;
+  final List<Conflict> conflicts;
 }

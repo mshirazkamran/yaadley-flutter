@@ -51,9 +51,11 @@ class _MoreScreenState extends ConsumerState<MoreScreen> with WidgetsBindingObse
 
   Future<void> _update(Map<String, Object> patch) async {
     try {
-      await ref.read(apiProvider).updateSettings(patch);
-      ref.invalidate(meProvider);
+      await ref.read(meProvider.notifier).updateSettings(patch);
     } catch (e) {
+      // The settings rolled back; the UI language was switched locally, so roll that back too.
+      final lang = ref.read(meProvider).value?.settings.language;
+      if (patch.containsKey('language') && lang != null) ref.read(languageProvider.notifier).set(lang == Language.en ? AppLanguage.english : AppLanguage.romanUrdu);
       if (mounted) showError(context, ref.read(stringsProvider), e);
     }
   }

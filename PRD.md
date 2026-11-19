@@ -1,7 +1,7 @@
 # Yaadly: Product Requirements Document (PRD)
 
 **Tagline:** Say it in Roman Urdu. Yaadly remembers.
-**Version:** 1.7 (MVP)  ·  **Date:** 2026-11-18  ·  **Status:** Approved for build
+**Version:** 1.8 (MVP)  ·  **Date:** 2026-11-19  ·  **Status:** Approved for build
 **Owner:** Muhammad Shiraz Kamran (FA23-BSE-077, BSE-7B), solo developer
 **Senior dev / reviewer:** Claude
 **Design:** Figma Make, https://www.figma.com/make/SL2R1QOmwmnljpRE0CGxV2/Design-mobile-app-UI-screens (published at https://ardent-quirky-31020635.figma.site). Follow it ~70–80%; the other 20–30% are changes listed in §9.
@@ -93,13 +93,14 @@ In Chat-replies mode, commands get a text reply. In App-only mode they get a �
 
 | ID | Requirement | Pri |
 |---|---|---|
-| D-1 | Create an event from voice, text or the app's + button: title, date, time, duration, optional location and meeting link. | P0 |
+| D-1 | Create an event from voice, text or the app's + button: title, date, time, duration, optional location and meeting link. **One message can hold several events** (max 6), e.g. "kal 11 bajay lab, 6 bajay backend fix"; a day said once applies to the events after it. Each event goes through D-2/D-3 on its own, in order. Saved events share one reply with one **↩️ Sab wapas karo** (undo all) and one invite button; events that need an answer get their own question after it. | P0 |
 | D-2 | **Auto-save ON:** if confidence ≥ 0.85, all fields are present and there is no clash, save it, write it to the main Google calendar, react ✅ and send a confirmation that has an **Undo** button. Otherwise create a **Pending** item with **Confirm / Edit / Cancel** (chat buttons or the app). | P0 |
 | D-3 | **Clash detection** against Yaadly events and **all visible Google calendars** (freebusy). On a clash: react ⚠️ and show both events with **Dono rakho** (keep both) / **Time badlo** (change time, suggesting up to 3 free slots) / **Naya cancel karo** (cancel the new one). | P0 |
 | D-4 | **Edit, reschedule and cancel by message**, e.g. "kal wali meeting 4 bajay kar do" (move tomorrow's meeting to 4) or "Ali wala plan cancel karo" (cancel the plan with Ali). Find matching events first. One match: confirm. Several: the user picks. None: "Nahi mila" (not found). Also possible in the app. | P0 |
 | D-5 | **Meeting links:** detect Zoom, Google Meet or Teams URLs in text or forwarded messages. Store the link on the event and put it in the Google event description. If the time is missing, clarify (B-4). | P0 |
 | D-6 | **Reminders** are sent on **WhatsApp** (FCM is dropped for now), 30 min before by default (configurable, or off). Only for Yaadly events (not Google-only ones). Inside the 24 h customer-service window this is a free-form message. Outside it, an approved **utility template** `event_reminder` is used. Buttons: "Theek hai" (OK) and "10 min baad" (snooze). Optional **quiet hours** (a toggle plus from/to times) hold the WhatsApp message back; the reminder still shows in the app Inbox. | P1 |
 | D-7 | Google is the source of truth for events that live there. If a Yaadly event is changed or deleted in Google, Yaadly picks that up the next time it reads (on every view, command or clash check). | P0 |
+| D-8 | **📅 Invite file (.ics).** Every "saved" reply has a **📅 Invite file** button next to Undo. Tapping it sends `<event-title>-invite.ics` (one file with all events for a batch) as a WhatsApp document the user can forward to anyone. In the app, the event sheet has **Invite bhejein (.ics)**, which opens the Android share sheet. | P1 |
 
 ### Epic E: Lists
 
@@ -122,15 +123,17 @@ Follows Figma ~70–80%. Screen changes are listed in §9.
 | F-1 | Splash / Welcome | P0 |
 | F-2 | Link WhatsApp (code, countdown, waiting, linked and expired states) | P0 |
 | F-3 | Connect Calendar (connect / later, connecting, connected showing the email, error) | P0 |
-| F-4 | **Today** with an Aaj/Kal toggle: events (tan cards), due tasks, alert banners, empty state | P0 |
+| F-4 | **Today** with an Aaj/Kal toggle: events (aligned full-width cards: fixed-width butter time column, paper body), due tasks, alert banners, empty state | P0 |
 | F-5 | **Inbox**: *Needs action* (pending, clarification, clash) and *Updates* (saved, undone, reminders). Unread dots. Pull to refresh, plus polling every 15 s while open | P0 |
 | F-6 | Pending event detail: original message / transcript, editable fields, Confirm / Edit / Cancel, low-confidence hint | P0 |
 | F-7 | Clarification card (AM/PM, day picker, duration) | P0 |
 | F-8 | Clash screen (new vs. existing, free-slot chips) | P0 |
-| F-9 | **Calendar**: month grid with dots, plus a day list, a "Kab free hoon?" button (free slots → new event). "+" adds an event manually. Week view is deferred | P0 |
+| F-9 | **Calendar**: month grid with dots, plus a day list, a "Kab free hoon?" button (free windows + check a time → new event). "+" adds an event manually. Week view is deferred | P0 |
 | F-10 | **Lists**: all lists → list detail (checkbox rows, add field, due-date chip). Create-list sheet with purpose | P0 |
 | F-11 | Help: commands, voice examples, reaction legend | P1 |
 | F-12 | **Settings**: language (**EN / Roman Urdu toggle**), delivery mode, testing mode, auto-save (on), reminder minutes, quiet hours, main calendar picker, Google connection, WhatsApp link status, delete my data | P0 (language, delivery, testing, auto-save, Google, WhatsApp) / P1 (rest) |
+
+**Responsiveness (slow internet):** settings change on screen at once (optimistic, one PATCH, rolled back with an error if it fails, the newest write wins); buttons give haptic feedback on tap; retry and save buttons show a spinner while the request runs.
 
 App data refresh (no FCM): fetch on screen open, pull to refresh, poll the Inbox every 15 s while the app is in the foreground, and show a badge count on the Inbox tab.
 
@@ -138,9 +141,9 @@ App data refresh (no FCM): fetch on screen open, pull to refresh, poll the Inbox
 
 | ID | Feature | Why it earns its place | Pri |
 |---|---|---|---|
-| G-1 | **📸 Photo → Event ("Card se event").** Forward a photo of a wedding or event card, a poster, or a screenshot of a chat or invite. **Qwen3.8-27B vision on Groq** (max 3 images, 20 MB) reads the date, time, venue and title, then the normal flow runs (auto-save / pending / clash). | Very common in Pakistan: shaadi cards and WhatsApp-forwarded invites. Strong demo moment. It reuses the whole event pipeline. | P0 |
+| G-1 | **📸 Photo → Event ("Card se event").** Forward a photo of a wedding or event card, a poster, or a screenshot of a chat or invite. **Qwen3.8-27B vision on Groq** (max 3 images, 20 MB) reads the date, time, venue and title, then the normal flow runs (auto-save / pending / clash). A card or timetable with **several events** (Mehndi, Baraat, Walima) creates one pending event each. Photo events always ask before saving. | Very common in Pakistan: shaadi cards and WhatsApp-forwarded invites. Strong demo moment. It reuses the whole event pipeline. | P0 |
 | G-2 | **↩️ Undo.** `/undo`, "wapas karo" (take it back), or the Undo button reverses the last create, edit, cancel or list change made in the last **15 min**, including in Google. Reaction ↩️. | Auto-save is ON, so one-tap undo is the safety net. It keeps users trusting the bot. | P0 |
-| G-3 | **🕒 "Kab free hoon?" (free-time finder).** For example, "kal kab free hoon?" (when am I free tomorrow?) or "jumma ko 1 ghante ka slot batao" (give me a 1-hour slot on Friday) returns up to 3 free slots across all calendars between 9:00 and 22:00. Tapping a slot starts an event for it. | It reuses the clash/freebusy engine, answers a question people really ask, and is perfect for Sara. | P1 |
+| G-3 | **🕒 "Kab free hoon?" (free-time finder).** "kal kab free hoon?" / "parson free hoon?" lists **every free window** of the day across all calendars between 9:00 and 22:00 (merged, never in the past). "kal 2 bajay free hoon?" answers **yes/no** for that time (1 hour, or the stated duration): yes shows how long the free stretch lasts; no lists what is booked and the nearest free windows. In the app, tapping a window starts an event there, and "Kisi waqt check karein" checks a picked time. | It reuses the clash/freebusy engine, answers a question people really ask, and is perfect for Sara. | P1 |
 
 Candidates for later: daily morning agenda on WhatsApp (needs an approved template), recurring events, shared lists.
 
@@ -164,12 +167,15 @@ No limits or counters are enforced in this build. The `UsageCounter` table still
    2. The job is queued, the audio is downloaded and transcribed, then deleted.
    3. gpt-oss-120b (with Qwen as fallback) extracts the intent as JSON. The validator applies the parsing rules.
    4. If info is missing, go to the clarification flow. Otherwise run a freebusy clash check; on a clash, go to the clash flow.
-   5. If confident, auto-save and react ✅ with an Undo option. Otherwise create a Pending item and react ❓.
-3. **Photo → Event:** the image arrives → 👀 → Qwen3.8-27B vision → the same pipeline from the clash check onwards.
+   5. If confident, auto-save and react ✅ with Undo and Invite file buttons. Otherwise create a Pending item and react ❓.
+   6. Several events in one message: steps 4–5 run for each in order; saved ones are grouped in one reply (Sab wapas karo + one invite file), questions follow one by one.
+3. **Photo → Event:** the image arrives → 👀 → Qwen3.8-27B vision → one draft per event on the image → the same pipeline from the clash check onwards (always confirmed).
 4. **List dictation:** voice → intent `add_list_items` → route each item to a list by purpose, or to the default list → split and de-duplicate → 🛒 (+ list card).
 5. **Edit/cancel by message:** intent `edit_event` / `cancel_event` → match candidates → confirm or choose → update Google + DB → ✅ (with Undo).
 6. **Reminder:** a pg-boss job runs every minute and claims events whose start − N min has passed (once per start time, so a moved event is reminded again; cancelled events never match) → quiet-hours check → WhatsApp message (free-form in the window, template outside) with a join link if there is one → "Theek hai" / "10 min baad" (snooze re-fires 10 min later). Events created or changed after their reminder time are not reminded.
-7. **Undo:** look up the last `ActionLog` entry within 15 min → apply its inverse → ↩️.
+7. **Undo:** look up the last `ActionLog` entry within 15 min → apply its inverse → ↩️. "Sab wapas karo" undoes every event of a batch the same way.
+8. **Free time:** intent `find_free_time` → no time: list the day's free windows · with a time: clash check for that slot → ✅ free / ❌ busy + nearest free windows.
+9. **Invite file:** tap 📅 Invite file → load the event(s) → build an RFC 5545 `.ics` → upload to WhatsApp media → send as a document.
 
 ## 8. Non-functional requirements
 
@@ -253,7 +259,8 @@ Reminders use one per-minute pg-boss cron job (`reminder-tick`), not one job per
 | POST/PATCH/DELETE | `/v1/events[/:id]` | Manual event CRUD |
 | GET | `/v1/inbox` · POST `/v1/inbox/seen` | Inbox (pending + updates, unread count) |
 | POST | `/v1/pending/:id/action` `{action, arg}` · `/v1/pending/:id/answer` `{text}` | Pending actions (same actions as the WhatsApp buttons) |
-| GET | `/v1/free-slots?date=&duration=` | Free-time finder |
+| GET | `/v1/free-slots?date=&duration=` | Up to 3 slots of a given length (clash "Time badlo") |
+| GET | `/v1/free-time?date=&time=&duration=` | Free-time finder: the day's free windows, plus `check {free, conflicts}` when `time` is given |
 | CRUD | `/v1/lists[/:id]`, POST `/v1/lists/:id/items`, PATCH/DELETE `/v1/items/:id` | Lists and items (rename, default, move, tick, due date) |
 | POST | `/v1/undo` | Undo last action |
 | DELETE | `/v1/me` | Delete account |
@@ -261,7 +268,7 @@ Reminders use one per-minute pg-boss cron job (`reminder-tick`), not one job per
 
 ### Intent schema (Groq structured output, `json_schema` with `strict: true` on gpt-oss-120b)
 
-Intents: `create_event`, `edit_event`, `cancel_event`, `show_schedule`, `find_free_time`, `connect_calendar`, `create_list`, `add_list_items`, `complete_list_items`, `remove_list_items`, `show_list`, `undo`, `help`, `smalltalk`, `unknown`. The output is flat (strict-mode friendly): event fields (`title, date, time_hour, time_minute, meridiem, duration_minutes, location`), edit fields (`target_query, target_date, new_*`), `schedule_date`, list fields (`list_name, list_purpose, list_kind, items[{text, list, due_date}]`) and `confidence`. The model only extracts; code applies the rules (see `src/modules/nlu/draft.ts`, `src/modules/lists/routing.ts`).
+Intents: `create_event`, `edit_event`, `cancel_event`, `show_schedule`, `find_free_time`, `connect_calendar`, `create_list`, `add_list_items`, `complete_list_items`, `remove_list_items`, `show_list`, `undo`, `help`, `smalltalk`, `unknown`. The output is flat (strict-mode friendly): event fields (`title, date, time_hour, time_minute, meridiem, duration_minutes, location`), edit fields (`target_query, target_date, new_*`), `schedule_date`, list fields (`list_name, list_purpose, list_kind, items[{text, list, due_date}]`), `events[{title, date, time_hour, time_minute, meridiem, duration_minutes, location}]` (only for 2+ events in one message; the first is also copied to the top-level fields; max 6) and `confidence`. For `find_free_time`, `schedule_date` is the day and `time_hour/time_minute/meridiem` the time asked about, if any. The model only extracts; code applies the rules (see `src/modules/nlu/draft.ts`, `src/modules/lists/routing.ts`).
 
 ## 11. Tech stack (versions checked 2026-10-28)
 
@@ -375,6 +382,7 @@ yaadely/                      (local parent folder only, not a git repo)
 | M5 ✅ code | App: pairing, Today, Inbox + pending/clarify/clash, Lists, Calendar month, Settings (language, delivery, testing) | End-to-end demo on the phone |
 | M6 ✅ code | Photo → Event, meeting links, NLU eval set | Forwarded shaadi card → pending event |
 | M7 ✅ code | Reminders (per-minute pg-boss tick + `event_reminder` template, snooze, quiet-hours toggle), task due-date reminders (`task_reminder` template), free-time finder in the app, delete account, main-calendar picker, Google resync job. Week view deferred | Reminder arrives on WhatsApp 30 min before; "10 min baad" re-reminds |
+| M8 ✅ code | Multiple events per message/photo with batch undo, free windows + "kal 2 bajay free hoon?", `.ics` invite file (WhatsApp + app share), snappier app (optimistic settings, retry spinner, haptics), aligned event cards | "kal 11 bajay lab, 6 bajay gym" → 2 events, one Sab wapas karo; Invite file opens in a calendar |
 
 Quality gates: TypeScript strict mode, vitest unit tests for the parsing rules, delivery selector and routing, the eval runner, and `flutter analyze` clean.
 

@@ -17,6 +17,7 @@ class YButton extends StatelessWidget {
     this.variant = YButtonVariant.sun,
     this.expand = false,
     this.large = false,
+    this.loading = false,
   });
 
   final String label;
@@ -24,6 +25,9 @@ class YButton extends StatelessWidget {
   final YButtonVariant variant;
   final bool expand;
   final bool large;
+
+  /// Shows a spinner next to the label and ignores taps (the request is already on its way).
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -41,14 +45,23 @@ class YButton extends StatelessWidget {
         bottomLeft: Radius.circular(4),
       ),
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: large ? 16 : 12),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: YaadlyText.display(size: large ? 18 : 15, weight: FontWeight.w600, color: fg).copyWith(height: 1.2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (loading) ...[SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2, color: fg)), const SizedBox(width: 10)],
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: YaadlyText.display(size: large ? 18 : 15, weight: FontWeight.w600, color: fg).copyWith(height: 1.2),
+            ),
+          ),
+        ],
       ),
     );
     return Pressable(
-      onTap: onPressed,
+      onTap: loading ? () {} : onPressed,
       semanticLabel: label,
       child: expand ? SizedBox(width: double.infinity, child: box) : box,
     );

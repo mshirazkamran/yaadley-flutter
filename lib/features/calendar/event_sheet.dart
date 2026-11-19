@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/data/providers.dart';
 import '../../core/data/yaadly_api.dart';
 import '../../core/format.dart';
+import '../../core/ics.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/models/models.dart';
 import '../../core/router/app_router.dart';
@@ -87,6 +88,16 @@ class _EventFormState extends ConsumerState<_EventForm> {
     }
   }
 
+  Future<void> _shareInvite() async {
+    final s = ref.read(stringsProvider);
+    final tz = ref.read(meProvider).value?.timezone ?? 'Asia/Karachi';
+    try {
+      await shareInvite(widget.event!, timezone: tz);
+    } catch (err) {
+      if (mounted) showError(context, s, err);
+    }
+  }
+
   Future<void> _delete() async {
     final s = ref.read(stringsProvider);
     final ok = await confirmDialog(context, title: s.tr('Ye event cancel karun?', 'Cancel this event?'), yes: s.tr('Haan, cancel', 'Yes, cancel'), no: s.tr('Nahi', 'No'));
@@ -149,8 +160,10 @@ class _EventFormState extends ConsumerState<_EventForm> {
         const Gap(16),
         YField(controller: _location, hint: s.tr('Jagah (optional)', 'Place (optional)'), maxLength: 200),
         const Gap(24),
-        YButton(label: _busy ? '…' : s.tr('Save karo', 'Save'), expand: true, onPressed: _busy ? null : _save),
+        YButton(label: s.tr('Save karo', 'Save'), expand: true, loading: _busy, onPressed: _save),
         if (editing) ...[
+          const Gap(10),
+          YButton(label: s.tr('📅 Invite bhejein (.ics)', '📅 Share invite (.ics)'), variant: YButtonVariant.paper, expand: true, onPressed: _shareInvite),
           const Gap(10),
           YButton(label: s.tr('Event cancel karo', 'Cancel event'), variant: YButtonVariant.ink, expand: true, onPressed: _busy ? null : _delete),
         ],

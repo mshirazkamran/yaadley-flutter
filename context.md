@@ -4,7 +4,7 @@
 > **There are two identical copies**, one in `yaadley-backend/` and one in `yaadley-flutter/`. Update both together.
 
 **Status:** PRD v1.7. **M0–M7 code done** incl. task due-date reminders (week view deferred). Backend: 135 unit + 40 integration tests ✅. Flutter: analyze clean, 7 tests ✅. M0–M6 deployed and working on the phone. Next: `event_reminder` template submitted ✅ (waiting for approval); submit `task_reminder`, deploy M7 (migration `0004_m7_reminders` runs on boot), test reminders/snooze/quiet hours/delete account on the phone, run `npm run eval:nlu`.
-**Last updated:** 2026-11-18
+**Last updated:** 2026-11-19
 
 ---
 
@@ -75,6 +75,10 @@ Yaadly is a WhatsApp assistant for Pakistani users. It turns Urdu, Roman Urdu an
 | D63 | **Delete account** (`DELETE /v1/me`): revoke Google, then delete the user row; every table cascades. Events already in Google stay there. | R11 |
 | D64 | **Week view dropped from M7** (owner's call). Main-calendar picker lists writable calendars only; changing it affects new events only. | R11 |
 | D65 | **Task reminders** (E-7) reuse the reminder tick: tasks due today (user tz) are claimed after `task_reminder_time` (default 09:00, on by default), stamped `reminded_for = due_date`, and grouped into **one message per user per day**. Buttons `t:<date>:done|snooze` act on every open task reminded for that date ("Ho gaya" goes through `ListService` so it's undoable). Snooze 1 h. Second template `task_reminder`. Only on the due day (no overdue nags). | R11 |
+| D66 | **Multiple events per message** (voice, text, photo): the NLU fills `events[]` (max 6); a day said once carries forward. Each event runs the normal rules in order; saved ones share one reply with one "Sab wapas karo" (`ub:<packed ids>`); questions follow one by one. Photos still always confirm. | R12 |
+| D67 | **Free time:** "kal kab free hoon?" lists every free window (09:00–22:00, merged); "kal 2 bajay free hoon?" answers yes/no for 1 h (or stated duration) with clashes + nearest free time. App: `GET /v1/free-time?date&time&duration`. | R12 |
+| D68 | **.ics invites:** "📅 Invite file" button (`i:<packed event ids>`) under Undo sends `<title>-invite.ics` as a WhatsApp document (falls back to text/plain upload if text/calendar is refused). App: "Invite bhejein" in the event sheet via share_plus. | R12 |
+| D69 | **Snappy app UI:** settings are optimistic (one PATCH, rollback on error, newest write wins), retry buttons show a spinner, taps give haptic feedback. Event cards aligned, butter time column, paper body. | R12 |
 | D37 | **Design source:** Figma Make file `SL2R1QOmwmnljpRE0CGxV2` (React prototype). The connector is connected and lists its files. Use the exported code in `yaadley-flutter/design/figma-make/`. | R4 |
 
 ## 3. Scope at a glance

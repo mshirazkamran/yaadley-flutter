@@ -148,7 +148,8 @@ class AsyncBody<T> extends ConsumerWidget {
               const Gap(4),
               Text(s.tr('Dobara koshish karein.', 'Please try again.'), style: YaadlyText.body(color: YaadlyColors.clay)),
               const Gap(16),
-              YButton(label: s.tr('Dobara try karein', 'Try again'), onPressed: onRetry),
+              // Riverpod keeps the error while it retries: show that the retry is running.
+              YButton(label: value.isLoading ? s.tr('Koshish ho rahi hai…', 'Trying…') : s.tr('Dobara try karein', 'Try again'), loading: value.isLoading, onPressed: onRetry),
             ],
           ),
         ),

@@ -13,11 +13,35 @@ const inboxPollInterval = Duration(seconds: 15);
 DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
 /// The signed-in user. Also applies their language setting to the UI.
-final meProvider = FutureProvider<Me>((ref) async {
-  final me = await ref.watch(apiProvider).me();
-  ref.read(languageProvider.notifier).set(me.settings.language == Language.en ? AppLanguage.english : AppLanguage.romanUrdu);
-  return me;
-});
+class MeController extends AsyncNotifier<Me> {
+  int _writes = 0;
+
+  @override
+  Future<Me> build() async {
+    final me = await ref.watch(apiProvider).me();
+    ref.read(languageProvider.notifier).set(me.settings.language == Language.en ? AppLanguage.english : AppLanguage.romanUrdu);
+    return me;
+  }
+
+  /// Optimistic settings change: the UI flips at once, the server catches up. On failure the
+  /// previous settings come back and the error is rethrown. Only the newest write's answer is
+  /// applied, so fast taps on a slow connection can't flicker back to an older state.
+  Future<void> updateSettings(Map<String, Object> patch) async {
+    final before = state.value;
+    if (before == null) return;
+    final write = ++_writes;
+    state = AsyncData(before.withSettings(before.settings.withPatch(patch)));
+    try {
+      final saved = await ref.read(apiProvider).updateSettings(patch);
+      if (write == _writes) state = AsyncData(saved);
+    } catch (_) {
+      if (write == _writes) state = AsyncData(before);
+      rethrow;
+    }
+  }
+}
+
+final meProvider = AsyncNotifierProvider<MeController, Me>(MeController.new);
 
 final dayProvider = FutureProvider.autoDispose.family<DayData, DateTime>((ref, day) => ref.watch(apiProvider).day(day));
 

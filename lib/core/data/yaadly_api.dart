@@ -79,9 +79,10 @@ class YaadlyApi {
   Future<RangeData> range(DateTime from, DateTime to) =>
       _call(() => _dio.get<Json>('/v1/calendar', queryParameters: {'from': isoDay(from), 'to': isoDay(to)}), (d) => RangeData.fromJson(d as Json));
 
-  Future<List<EventItem>> freeSlots(DateTime date, int durationMin) => _call(
-        () => _dio.get<Json>('/v1/free-slots', queryParameters: {'date': isoDay(date), 'duration': durationMin}),
-        (d) => [for (final s in ((d as Json)['slots'] as List)) EventItem(title: '', start: wallClock((s as Json)['start'] as String), end: wallClock(s['end'] as String))],
+  /// Free windows of [date]; with [time], also whether [time, time + durationMin) is free.
+  Future<FreeTime> freeTime(DateTime date, {DateTime? time, int durationMin = 60}) => _call(
+        () => _dio.get<Json>('/v1/free-time', queryParameters: {'date': isoDay(date), if (time != null) 'time': hhmm(time), 'duration': durationMin}),
+        (d) => FreeTime.fromJson(d as Json),
       );
 
   Future<EventOutcome> createEvent({required String title, required DateTime start, required int durationMin, String? location, required String idempotencyKey}) => _call(

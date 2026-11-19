@@ -88,7 +88,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         const Gap(8),
                         if (events.isEmpty && tasks.isEmpty)
                           Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(s.tr('Is din kuch plan nahi.', 'Nothing planned this day.'), style: YaadlyText.body(color: YaadlyColors.clay))),
-                        for (final (i, e) in events.indexed) Padding(padding: const EdgeInsets.only(bottom: 12), child: EventCard(event: e, alternate: i.isOdd)),
+                        for (final e in events) Padding(padding: const EdgeInsets.only(bottom: 12), child: EventCard(event: e)),
                         if (tasks.isNotEmpty) ...[const Gap(4), TaskBox(tasks: tasks, showList: true)],
                       ],
                     ),

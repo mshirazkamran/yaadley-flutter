@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/yaadly_colors.dart';
 
@@ -74,7 +75,13 @@ class _PressableState extends State<Pressable> {
         onTapDown: (_) => _set(true),
         onTapUp: (_) => _set(false),
         onTapCancel: () => _set(false),
-        onTap: widget.onTap,
+        onTap: widget.onTap == null
+            ? null
+            : () {
+                // Instant tactile feedback, even when the action then waits on the network.
+                HapticFeedback.selectionClick();
+                widget.onTap!();
+              },
         child: AnimatedSlide(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,

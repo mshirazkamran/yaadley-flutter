@@ -35,6 +35,8 @@ class HelpScreen extends ConsumerWidget {
       '"ek list banao office ke kaam ke liye"',
       '"doodh le liya"',
       '"kal kab free hoon?"',
+      '"kal 2 bajay free hoon?"',
+      '"kal 11 bajay lab, 6 bajay gym"',
     ];
     final reactions = [
       ('👀', s.tr('Kaam ho raha hai', 'Working on it')),
